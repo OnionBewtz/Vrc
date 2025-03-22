@@ -27,6 +27,42 @@ interface User {
   online: boolean
 }
 
+// Dummy implementations for socket functions
+const connectToSocket = (username: string) => {
+  console.log(`Connecting to socket as ${username}`)
+  return {} // Replace with actual socket connection logic
+}
+
+const disconnectSocket = () => {
+  console.log("Disconnecting socket")
+  // Replace with actual socket disconnection logic
+}
+
+const sendMessage = (message: any) => {
+  console.log("Sending message:", message)
+  // Replace with actual socket send message logic
+}
+
+const onMessageReceived = (callback: (message: Message) => void) => {
+  console.log("Listening for new messages")
+  // Replace with actual socket message receive logic
+}
+
+const onUsersList = (callback: (users: User[]) => void) => {
+  console.log("Listening for user list updates")
+  // Replace with actual socket user list logic
+}
+
+const onUserJoined = (callback: (user: User) => void) => {
+  console.log("Listening for user join events")
+  // Replace with actual socket user join logic
+}
+
+const onUserLeft = (callback: (userId: string) => void) => {
+  console.log("Listening for user leave events")
+  // Replace with actual socket user leave logic
+}
+
 export default function ChatRoom() {
   const [messages, setMessages] = useState<Message[]>([])
   const [messageInput, setMessageInput] = useState("")
@@ -35,99 +71,62 @@ export default function ChatRoom() {
   const [isJoined, setIsJoined] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Mock data for users
-  useEffect(() => {
-    setUsers([
-      { id: "1", name: "Alice", avatar: "/placeholder.svg?height=40&width=40", online: true },
-      { id: "2", name: "Bob", avatar: "/placeholder.svg?height=40&width=40", online: true },
-      { id: "3", name: "Charlie", avatar: "/placeholder.svg?height=40&width=40", online: false },
-      { id: "4", name: "Diana", avatar: "/placeholder.svg?height=40&width=40", online: true },
-    ])
-  }, [])
-
   // Scroll to bottom of messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
-  // Mock function to simulate receiving a message
-  const simulateReceiveMessage = () => {
-    const mockResponses = [
-      "Hey there! How's it going?",
-      "That's interesting!",
-      "I'm working on a new project.",
-      "Did you see the news today?",
-      "What are your plans for the weekend?",
-    ]
+  useEffect(() => {
+    if (isJoined && username) {
+      // Connect to socket
+      const socket = connectToSocket(username)
 
-    const randomUser = users.filter((user) => user.online && user.name !== username)[
-      Math.floor(Math.random() * (users.filter((user) => user.online).length - 1))
-    ]
+      // Set up event listeners
+      onMessageReceived((message) => {
+        setMessages((prev) => [...prev, message])
+      })
 
-    if (randomUser) {
-      setTimeout(
-        () => {
-          const newMessage: Message = {
-            id: Date.now().toString(),
-            text: mockResponses[Math.floor(Math.random() * mockResponses.length)],
-            sender: randomUser.name,
-            timestamp: new Date(),
-          }
-          setMessages((prev) => [...prev, newMessage])
-        },
-        2000 + Math.random() * 3000,
-      )
+      onUsersList((usersList) => {
+        setUsers(usersList)
+      })
+
+      onUserJoined((user) => {
+        setUsers((prev) => [...prev.filter((u) => u.id !== user.id), user])
+      })
+
+      onUserLeft((userId) => {
+        setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, online: false } : u)))
+      })
+
+      // Clean up on unmount
+      return () => {
+        disconnectSocket()
+      }
     }
-  }
+  }, [isJoined, username])
 
   // Handle sending a message
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault()
     if (messageInput.trim() === "") return
 
-    const newMessage: Message = {
-      id: Date.now().toString(),
+    const newMessage = {
       text: messageInput,
       sender: username,
-      timestamp: new Date(),
     }
 
-    setMessages((prev) => [...prev, newMessage])
+    sendMessage(newMessage)
     setMessageInput("")
-
-    // Simulate receiving a response
-    simulateReceiveMessage()
   }
 
   // Handle joining the chat
   const handleJoinChat = (e: React.FormEvent) => {
     e.preventDefault()
     if (username.trim() === "") return
-
     setIsJoined(true)
 
-    // Add user to the list
-    const newUser: User = {
-      id: Date.now().toString(),
-      name: username,
-      avatar: "/placeholder.svg?height=40&width=40",
-      online: true,
-    }
-
-    setUsers((prev) => [...prev, newUser])
-
-    // Add welcome message
-    const welcomeMessage: Message = {
-      id: Date.now().toString(),
-      text: `Welcome to the chat, ${username}!`,
-      sender: "System",
-      timestamp: new Date(),
-    }
-
-    setMessages([welcomeMessage])
-
-    // Simulate receiving a message after joining
-    simulateReceiveMessage()
+    // The socket connection will be established in the useEffect
+    // and the server will handle adding the user to the list
   }
 
   // Format timestamp
